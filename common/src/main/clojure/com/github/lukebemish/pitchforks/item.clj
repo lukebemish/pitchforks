@@ -1,7 +1,7 @@
 (ns com.github.lukebemish.pitchforks.item
   (:require [com.github.lukebemish.clojurewrapper.api.item :as item]
             [com.github.lukebemish.clojurewrapper.api.util.functional :as functional])
-  (:import (net.minecraft.world.item CreativeModeTab Item Vanishable ItemStack UseAnim)
+  (:import (net.minecraft.world.item CreativeModeTab Item Vanishable ItemStack UseAnim Item$Properties)
            (com.google.common.collect ImmutableMultimap ImmutableMultimap$Builder)
            (net.minecraft.world.entity.ai.attributes Attributes AttributeModifier AttributeModifier$Operation)
            (net.minecraft.world.entity EquipmentSlot LivingEntity)
@@ -18,9 +18,9 @@
                                         (.build att-builder))))))
 
 (def pitchfork-item (memoize (fn []
-                               (proxy [Item Vanishable] [(item/item-properties {:tab        CreativeModeTab/TAB_COMBAT
-                                                                                ;:max-damage (int 150)
-                                                                                :stack-size (int 1)})]
+                               (proxy [Item Vanishable] [(doto (Item$Properties.)
+                                                           (.tab CreativeModeTab/TAB_COMBAT)
+                                                           (.durability (int 150)))]
                                  (getDefaultAttributeModifiers [slot] (if (= slot EquipmentSlot/MAINHAND)
                                                                         (pitchfork-atts)
                                                                         (proxy-super getDefaultAttributeModifiers slot)))
@@ -36,7 +36,9 @@
                                    (let [^ItemStack itemStack (.getItemInHand ^Player player ^InteractionHand interactionHand)]
                                         (if (>= (.getDamageValue itemStack) (.getMaxDamage itemStack))
                                           (InteractionResultHolder/fail itemStack)
-                                          (InteractionResultHolder/consume itemStack))))
+                                          (do
+                                            (.startUsingItem player interactionHand)
+                                            (InteractionResultHolder/consume itemStack)))))
                                  (getUseDuration [itemStack] 96000)
                                  (getUseAnimation [itemStack] UseAnim/SPEAR)
                                  (canAttackBlock [blockState level blockPos player] (.isCreative ^Player player))
