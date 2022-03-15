@@ -2,7 +2,12 @@
   (:import (net.minecraft.world.entity EntityType LivingEntity)
            (net.minecraft.world.level Level ItemLike)
            (net.minecraft.world.item ItemStack)
-           (net.minecraft.world.item.enchantment EnchantmentHelper))
+           (net.minecraft.world.item.enchantment EnchantmentHelper)
+           (net.minecraft.server.level ServerPlayer)
+           (net.minecraft.world.entity.player Player)
+           (net.minecraft.sounds SoundEvents)
+           (net.minecraft.nbt CompoundTag)
+           (net.minecraft.world.entity.projectile AbstractArrow$Pickup))
   (:require [com.github.lukebemish.pitchforks.item :as item]
             [com.github.lukebemish.pitchforks.entity.shared :as shared])
   (:gen-class
@@ -10,7 +15,12 @@
     :state state
     :init init
     :post-init post-init
-    :exposes-methods {defineSynchedData p-defineSynchedData}
+    :exposes-methods {defineSynchedData p-defineSynchedData
+                      findHitEntity p-findHitEntity
+                      tryPickup p-tryPickup
+                      playerTouch p-playerTouch
+                      addAdditionalSaveData p-addAdditionalSaveData
+                      tickDespawn p-tickDespawn}
     :prefix "-"
     :main false))
 
@@ -22,13 +32,15 @@
   [this key]
   (@(.state this) key))
 
+(defn default-state [] {:item-stack nil :dealt-damage false})
+
 (defn -init
   ([type ^Level level]
    [[type level]
-    (atom {:item-stack nil})])
+    (atom (default-state))])
   ([type ^LivingEntity entity ^Level level ^ItemStack item-stack]
    [[type entity level]
-    (atom {:item-stack nil})]))
+    (atom (default-state))]))
 
 (defn -post-init
   ([this type ^Level level]
@@ -47,3 +59,51 @@
 
 (defn -getPickupItem [this]
   (.copy (getfield this :item-stack)))
+
+(defn -isAcceptibleReturnOwner [this]
+  (let [entity (.getOwner this)]
+    (and (not (nil? entity)) (.isAlive entity)
+         (or (not (.isSpectator entity)) (instance? ServerPlayer entity)))))
+
+(defn -isFoil [this]
+  (boolean (.get (.getEntityData this) shared/id-foil)))
+
+(defn -findHitEntity [this vec31 vec32]
+  (if (getfield this :dealt-damage) nil (.p-findHitEntity this vec31 vec32)))
+
+(defn -isChanneling [this]
+  (EnchantmentHelper/hasChanneling (getfield this :item-stack)))
+
+(defn -tryPickup [this ^Player player]
+  (or (.p-tryPickup this player)
+      (and (.isNoPhysics this)
+           (.ownedBy this player)
+           (.add (.getInventory player) (.getPickupItem this)))))
+
+(defn -getDefaultHitGroundSoundEvent [this]
+  SoundEvents/TRIDENT_HIT_GROUND)
+
+(defn -playerTouch [this player]
+  (if (or (.ownedBy player) (nil? (.getOwner this)))
+    (.p-playerTouch this player)))
+
+(defn -readAdditionalSaveData [this ^CompoundTag tag]
+  (do
+    (if (.contains tag "Pitchfork" 10)
+      (setfield this :item-stack (ItemStack/of (.getCompound tag "Pitchfork"))))
+    (setfield this :dealt-damage (.getBoolean tag "DealtDamage"))
+    (.set (.getEntityData this) (shared/id-loyalty) (EnchantmentHelper/getLoyalty (getfield this :item-stack)))))
+
+(defn -addAdditionalSaveData [this ^CompoundTag tag]
+  (do
+    (.p-addAdditionalSaveData this tag)
+    (.put tag "Pitchfork" (.save ^ItemStack (getfield this :item-stack) (CompoundTag.)))
+    (.putBoolean tag "DealtDamage" (getfield this :dealt-damage))))
+
+(defn -tickDespawn [this]
+  (let [loyal (int ^byte (.get (.getEntityData this) (shared/id-loyalty)))]
+    (if (or (not (= (.pickup this) AbstractArrow$Pickup/ALLOWED))
+            (<= loyal 0))
+      (.p-tickDespawn this))))
+
+(defn -shouldRender [this] true)
