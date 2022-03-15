@@ -15,4 +15,4 @@ include("common")
 include("fabric")
 include("forge")
 
-rootProject.name = "clojure_example_mod"
+rootProject.name = "pitchforks"
