@@ -1,13 +1,13 @@
 modLoader = "clojureloader"
 loaderVersion = "[0.0.1,)"
-issueTrackerURL = "https://github.com/lukebemish/clojure_example_mod/issues"
+issueTrackerURL = "https://github.com/lukebemish/pitchforks/issues"
 license = "Insert License Here"
 
 [[mods]]
-modId = "clojure_example_mod"
-clojure = "clojureexamplemod.common/init"
+modId = "pitchforks"
+clojure = "com.github.lukebemish.pitchforks.common/init"
 version = "${version}"
-displayName = "Clojure Example Mod"
+displayName = "Pitchforks"
 authors = "Luke Bemish"
 description = '''
 Description here

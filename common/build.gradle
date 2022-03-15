@@ -19,6 +19,10 @@ architectury {
     common()
 }
 
+loom {
+    accessWidenerPath = file("src/main/resources/pitchforks.accesswidener")
+}
+
 publishing {
     publications {
         mavenCommon(MavenPublication) {

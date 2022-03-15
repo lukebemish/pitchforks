@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "clojure_example_mod",
+  "id": "pitchforks",
   "version": "${version}",
   "name": "Clojure Example Mod",
   "description": "Description",
@@ -8,7 +8,7 @@
     "Luke Bemish"
   ],
   "contact": {
-    "sources": "https://github.com/lukebemish/clojure_example_mod"
+    "sources": "https://github.com/lukebemish/pitchforks"
   },
   "license": "Insert License Here",
   "icon": "icon.png",
@@ -17,7 +17,7 @@
     "main": [
       {
         "adapter": "clojureloader",
-        "value": "clojureexamplemod.common/init"
+        "value": "com.github.lukebemish.pitchforks.common/init"
       }
     ]
   },
