@@ -1,13 +1,15 @@
 (ns com.github.lukebemish.pitchforks.entity.thrownpitchfork
-  (:import (net.minecraft.world.entity EntityType LivingEntity)
+  (:import (net.minecraft.world.entity LivingEntity Entity EntityType)
            (net.minecraft.world.level Level ItemLike)
            (net.minecraft.world.item ItemStack)
            (net.minecraft.world.item.enchantment EnchantmentHelper)
            (net.minecraft.server.level ServerPlayer)
            (net.minecraft.world.entity.player Player)
-           (net.minecraft.sounds SoundEvents)
+           (net.minecraft.sounds SoundEvents SoundEvent)
            (net.minecraft.nbt CompoundTag)
-           (net.minecraft.world.entity.projectile AbstractArrow$Pickup))
+           (net.minecraft.world.entity.projectile AbstractArrow$Pickup)
+           (net.minecraft.world.phys EntityHitResult)
+           (net.minecraft.world.damagesource DamageSource IndirectEntityDamageSource))
   (:require [com.github.lukebemish.pitchforks.item :as item]
             [com.github.lukebemish.pitchforks.entity.shared :as shared])
   (:gen-class
@@ -107,3 +109,19 @@
       (.p-tickDespawn this))))
 
 (defn -shouldRender [this] true)
+
+(defn -onHitEntity [this ^EntityHitResult entity-hit]
+  (let [^Entity entity (.getEntity entity-hit)
+        ^Float damage (+ 8.0 (if (instance? LivingEntity entity)
+                               (EnchantmentHelper/getDamageBonus (getfield this :item-stack)
+                                                                 (.getMobType ^LivingEntity entity)) 0))
+        ^Entity owner (.getOwner this)
+        ^DamageSource source (.setProjectile (IndirectEntityDamageSource. "pitchfork" entity
+                                                                          (if (nil? owner) this owner)))
+        ^SoundEvent sound-event SoundEvents/TRIDENT_HIT
+        after (fn [] ())]
+    (if (.hurt entity source damage)
+      (if (= (.getType entity) EntityType/ENDERMAN)
+        () (do
+
+             (after))))))
