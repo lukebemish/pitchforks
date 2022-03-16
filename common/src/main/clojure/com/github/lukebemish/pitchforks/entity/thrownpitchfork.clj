@@ -1,14 +1,14 @@
 (ns com.github.lukebemish.pitchforks.entity.thrownpitchfork
-  (:import (net.minecraft.world.entity LivingEntity Entity EntityType)
+  (:import (net.minecraft.world.entity LivingEntity Entity EntityType LightningBolt)
            (net.minecraft.world.level Level ItemLike)
            (net.minecraft.world.item ItemStack)
            (net.minecraft.world.item.enchantment EnchantmentHelper)
-           (net.minecraft.server.level ServerPlayer)
+           (net.minecraft.server.level ServerPlayer ServerLevel)
            (net.minecraft.world.entity.player Player)
-           (net.minecraft.sounds SoundEvents SoundEvent)
+           (net.minecraft.sounds SoundEvents)
            (net.minecraft.nbt CompoundTag)
-           (net.minecraft.world.entity.projectile AbstractArrow$Pickup)
-           (net.minecraft.world.phys EntityHitResult)
+           (net.minecraft.world.entity.projectile AbstractArrow$Pickup AbstractArrow)
+           (net.minecraft.world.phys EntityHitResult Vec3)
            (net.minecraft.world.damagesource DamageSource IndirectEntityDamageSource))
   (:require [com.github.lukebemish.pitchforks.item :as item]
             [com.github.lukebemish.pitchforks.entity.shared :as shared])
@@ -22,7 +22,9 @@
                       tryPickup p-tryPickup
                       playerTouch p-playerTouch
                       addAdditionalSaveData p-addAdditionalSaveData
-                      tickDespawn p-tickDespawn}
+                      tickDespawn p-tickDespawn
+                      tick p-tick}
+    :exposes {inGroundTime {:get get-in-ground-time :set set-in-ground-time}}
     :prefix "-"
     :main false))
 
@@ -34,7 +36,7 @@
   [this key]
   (@(.state this) key))
 
-(defn default-state [] {:item-stack nil :dealt-damage false})
+(defn default-state [] {:item-stack nil :dealt-damage false :client-return-ticks 0})
 
 (defn -init
   ([type ^Level level]
@@ -62,18 +64,18 @@
 (defn -getPickupItem [this]
   (.copy (getfield this :item-stack)))
 
-(defn -isAcceptibleReturnOwner [this]
+(defn isAcceptibleReturnOwner [this]
   (let [entity (.getOwner this)]
     (and (not (nil? entity)) (.isAlive entity)
          (or (not (.isSpectator entity)) (instance? ServerPlayer entity)))))
 
-(defn -isFoil [this]
+(defn isFoil [this]
   (boolean (.get (.getEntityData this) shared/id-foil)))
 
 (defn -findHitEntity [this vec31 vec32]
   (if (getfield this :dealt-damage) nil (.p-findHitEntity this vec31 vec32)))
 
-(defn -isChanneling [this]
+(defn isChanneling [this]
   (EnchantmentHelper/hasChanneling (getfield this :item-stack)))
 
 (defn -tryPickup [this ^Player player]
@@ -112,16 +114,58 @@
 
 (defn -onHitEntity [this ^EntityHitResult entity-hit]
   (let [^Entity entity (.getEntity entity-hit)
-        ^Float damage (+ 8.0 (if (instance? LivingEntity entity)
+        damage (float (+ 8.0 (if (instance? LivingEntity entity)
                                (EnchantmentHelper/getDamageBonus (getfield this :item-stack)
-                                                                 (.getMobType ^LivingEntity entity)) 0))
+                                                                 (.getMobType ^LivingEntity entity)) 0)))
         ^Entity owner (.getOwner this)
         ^DamageSource source (.setProjectile (IndirectEntityDamageSource. "pitchfork" entity
                                                                           (if (nil? owner) this owner)))
-        ^SoundEvent sound-event SoundEvents/TRIDENT_HIT
-        after (fn [] ())]
+        play-def (fn [] (.playSound this SoundEvents/TRIDENT_HIT (float 1.0) (float 1.0)))
+        after (fn [] (do
+                       (.setDeltaMovement this (.multiply (.getDeltaMovement this) -0.01 -0.1 -0.01))
+                       (if (and (instance? ServerLevel (.getLevel this)) (.isThundering (.getLevel this)) (isChanneling this))
+                         (let [block-pos (.blockPosition entity)]
+                           (if (.canSeeSky (.getLevel this) block-pos)
+                             (let [^LightningBolt bolt (.create EntityType/LIGHTNING_BOLT (.getLevel this))]
+                               (do
+                                 (.moveTo bolt (Vec3/atBottomCenterOf block-pos))
+                                 (.setCause bolt (if (instance? ServerPlayer owner) ^ServerPlayer owner nil))
+                                 (.addFreshEntity (.getLevel this) bolt)
+                                 (.playSound this SoundEvents/TRIDENT_THUNDER (float 5.0) (float 1.0))))
+                             (play-def)))
+                         (play-def))))]
     (if (.hurt entity source damage)
       (if (= (.getType entity) EntityType/ENDERMAN)
         () (do
+             (if (instance? LivingEntity entity)
+               (do
+                 (if (instance? LivingEntity owner)
+                   (do
+                     (EnchantmentHelper/doPostHurtEffects ^LivingEntity entity owner)
+                     (EnchantmentHelper/doPostDamageEffects ^LivingEntity owner ^LivingEntity entity)))
+                 (.doPostHurtEffects this ^LivingEntity entity)))
+             (after)))
+      (if (not (= (.getType entity) EntityType/ENDERMAN))
+        (after)))))
 
-             (after))))))
+(defn -tick [this]
+  (do
+    (if (> (.get-in-ground-time this) 4)
+      (setfield this :dealt-damage true))
+    (let [owner (.getOwner this)
+          loyalty (byte (.get (.getEntityData this) (shared/id-loyalty)))]
+      (if (and (> loyalty 0) (or (getfield this :dealt-damage) (.isNoPhysics this)) (not (nil? owner)))
+        (if (isAcceptibleReturnOwner this)
+          (let [vec3 (.subtract (.getEyePosition owner) (.position this))
+                d (* 0.05 loyalty)]
+            (do (.setNoPhysics this true)
+                (.setPosRaw this (.getX this) (+ (.getY this) (* (.y vec3) 0.015 loyalty)) (.getZ this))
+                (if (.isClientSide (.getLevel this)) (set! (. this -yOld) (.getY this)))
+                (.setDeltaMovement this (.add (.scale (.getDeltaMovement this) 0.95) (.scale (.normalize vec3) d)))
+                (if (= (getfield this :client-return-ticks) 0)
+                  (.playSound this SoundEvents/TRIDENT_RETURN (float 10.0) (float 1.0)))
+                (setfield this :client-return-ticks (+ 1 (getfield this :client-return-ticks)))))
+          (do (if (and (not (.isClientSide (.getLevel this))) (= (.pickup this) (AbstractArrow$Pickup/ALLOWED)))
+                (.spawnAtLocation this (.getPickupItem this) (float 0.1)))
+              (.discard this)))))
+    (.p-tick this)))
