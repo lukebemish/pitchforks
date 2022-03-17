@@ -11,20 +11,20 @@
            (net.minecraft.world.phys EntityHitResult Vec3)
            (net.minecraft.world.damagesource DamageSource IndirectEntityDamageSource))
   (:require [com.github.lukebemish.pitchforks.item :as item]
-            [com.github.lukebemish.pitchforks.entity.shared :as shared])
+            [com.github.lukebemish.pitchforks.shared :as shared])
   (:gen-class
     :extends net.minecraft.world.entity.projectile.AbstractArrow
     :state state
     :init init
     :post-init post-init
-    :exposes-methods {defineSynchedData p-defineSynchedData
-                      findHitEntity p-findHitEntity
-                      tryPickup p-tryPickup
-                      playerTouch p-playerTouch
-                      addAdditionalSaveData p-addAdditionalSaveData
-                      tickDespawn p-tickDespawn
-                      tick p-tick}
-    :exposes {inGroundTime {:get get-in-ground-time :set set-in-ground-time}}
+    :exposes-methods {defineSynchedData pdefineSynchedData
+                      findHitEntity pfindHitEntity
+                      tryPickup ptryPickup
+                      playerTouch pplayerTouch
+                      addAdditionalSaveData paddAdditionalSaveData
+                      tickDespawn ptickDespawn
+                      tick ptick}
+    :exposes {inGroundTime {:get getInGroundTime :set setInGroundTime}}
     :prefix "-"
     :main false))
 
@@ -51,13 +51,13 @@
    (setfield this :item-stack (ItemStack. ^ItemLike (item/pitchfork-item))))
   ([this type ^LivingEntity entity ^Level level ^ItemStack item-stack]
    (do
-     (.set (.getEntityData this) (shared/id-loyalty) ^byte (EnchantmentHelper/getLoyalty item-stack))
+     (.set (.getEntityData this) (shared/id-loyalty) (byte (EnchantmentHelper/getLoyalty item-stack)))
      (.set (.getEntityData this) (shared/id-foil) (.hasFoil item-stack))
      (setfield this :item-stack (.copy item-stack)))))
 
 (defn -defineSynchedData [this]
   (do
-    (.p-defineSynchedData this)
+    (.pdefineSynchedData this)
     (.define (.getEntityData this) (shared/id-loyalty) (byte 0))
     (.define (.getEntityData this) (shared/id-foil) false)))
 
@@ -73,13 +73,13 @@
   (boolean (.get (.getEntityData this) shared/id-foil)))
 
 (defn -findHitEntity [this vec31 vec32]
-  (if (getfield this :dealt-damage) nil (.p-findHitEntity this vec31 vec32)))
+  (if (getfield this :dealt-damage) nil (.pfindHitEntity this vec31 vec32)))
 
 (defn isChanneling [this]
   (EnchantmentHelper/hasChanneling (getfield this :item-stack)))
 
 (defn -tryPickup [this ^Player player]
-  (or (.p-tryPickup this player)
+  (or (.ptryPickup this player)
       (and (.isNoPhysics this)
            (.ownedBy this player)
            (.add (.getInventory player) (.getPickupItem this)))))
@@ -88,27 +88,27 @@
   SoundEvents/TRIDENT_HIT_GROUND)
 
 (defn -playerTouch [this player]
-  (if (or (.ownedBy player) (nil? (.getOwner this)))
-    (.p-playerTouch this player)))
+  (if (or (.ownedBy this player) (nil? (.getOwner this)))
+    (.pplayerTouch this player)))
 
 (defn -readAdditionalSaveData [this ^CompoundTag tag]
   (do
     (if (.contains tag "Pitchfork" 10)
       (setfield this :item-stack (ItemStack/of (.getCompound tag "Pitchfork"))))
     (setfield this :dealt-damage (.getBoolean tag "DealtDamage"))
-    (.set (.getEntityData this) (shared/id-loyalty) (EnchantmentHelper/getLoyalty (getfield this :item-stack)))))
+    (.set (.getEntityData this) (shared/id-loyalty) (byte (EnchantmentHelper/getLoyalty (getfield this :item-stack))))))
 
 (defn -addAdditionalSaveData [this ^CompoundTag tag]
   (do
-    (.p-addAdditionalSaveData this tag)
+    (.paddAdditionalSaveData this tag)
     (.put tag "Pitchfork" (.save ^ItemStack (getfield this :item-stack) (CompoundTag.)))
     (.putBoolean tag "DealtDamage" (getfield this :dealt-damage))))
 
 (defn -tickDespawn [this]
-  (let [loyal (int ^byte (.get (.getEntityData this) (shared/id-loyalty)))]
+  (let [loyal (int (byte (.get (.getEntityData this) (shared/id-loyalty))))]
     (if (or (not (= (.pickup this) AbstractArrow$Pickup/ALLOWED))
             (<= loyal 0))
-      (.p-tickDespawn this))))
+      (.ptickDespawn this))))
 
 (defn -shouldRender [this] true)
 
@@ -150,7 +150,7 @@
 
 (defn -tick [this]
   (do
-    (if (> (.get-in-ground-time this) 4)
+    (if (> (.getInGroundTime this) 4)
       (setfield this :dealt-damage true))
     (let [owner (.getOwner this)
           loyalty (byte (.get (.getEntityData this) (shared/id-loyalty)))]
@@ -168,4 +168,4 @@
           (do (if (and (not (.isClientSide (.getLevel this))) (= (.pickup this) (AbstractArrow$Pickup/ALLOWED)))
                 (.spawnAtLocation this (.getPickupItem this) (float 0.1)))
               (.discard this)))))
-    (.p-tick this)))
+    (.ptick this)))
