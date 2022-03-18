@@ -11,13 +11,14 @@
             [com.github.lukebemish.pitchforks.shared :as shared]
             [com.github.lukebemish.pitchforks.client.shared :as shared-client])
   (:gen-class
+    :name com.github.lukebemish.pitchforks.client.ThrownPitchforkRenderer
     :extends net.minecraft.client.renderer.entity.EntityRenderer
     :state state
     :init init
     :exposes-methods {render p-render}))
 
 
-(defn -init [context] [[context] (TridentModel. (.bakeLayer context (shared-client/pitchfork-layer)))])
+(defn -init [context] [[context] (TridentModel. (.bakeLayer context shared-client/pitchfork-layer))])
 
 (defn -render [this ^Entity thrown f g ^PoseStack posestack source i]
   (do

@@ -13,6 +13,7 @@
   (:require [com.github.lukebemish.pitchforks.item :as item]
             [com.github.lukebemish.pitchforks.shared :as shared])
   (:gen-class
+    :name com.github.lukebemish.pitchforks.entity.ThrownPitchfork
     :extends net.minecraft.world.entity.projectile.AbstractArrow
     :state state
     :init init
