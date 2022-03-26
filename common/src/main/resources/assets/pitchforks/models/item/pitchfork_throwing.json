@@ -1,0 +1,28 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:item/trident"
+  },
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [ 0, 90, 225 ],
+      "translation": [ 0, -6, 3 ],
+      "scale": [ 1.2, 1.2, 1.2 ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [ 0, -90, -225 ],
+      "translation": [ 0, -6, 3 ],
+      "scale": [ 1.2, 1.2, 1.2 ]
+    },
+    "firstperson_righthand": {
+      "rotation": [ 0, 0, 0 ],
+      "translation": [ 0, 0, 0],
+      "scale": [ 1, 1, 1 ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [ 0, 0, 0 ],
+      "translation": [  0, 0, 0],
+      "scale": [ 1, 1, 1 ]
+    }
+  }
+}

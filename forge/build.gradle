@@ -12,9 +12,12 @@ loom {
     accessWidenerPath = project(":common").loom.accessWidenerPath
 
     forge {
+        mixinConfig "mixin.pitchforks.json"
         convertAccessWideners = true
         extraAccessWideners.add loom.accessWidenerPath.get().asFile.name
     }
+
+    log4jConfigs.from(file("../logger.xml"))
 }
 
 configurations {
@@ -33,11 +36,11 @@ dependencies {
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionForge")) { transitive = false }
 
-    modApi("com.github.lukebemish.clojurewrapper:clojurewrapper-forgeloader:${rootProject.wrapper_version}") {
+    modApi("com.github.lukebemish:clojurewrapper-forgeloader:${rootProject.wrapper_version}") {
         transitive=false
     }
     forgeRuntimeLibrary "org.clojure:clojure:${rootProject.clojure_version}"
-    modApi("com.github.lukebemish.clojurewrapper:clojurewrapper-forgeapi:${rootProject.wrapper_version}:remap") {
+    modApi("com.github.lukebemish:clojurewrapper-forgeapi:${rootProject.wrapper_version}:remap") {
         transitive=false
     }
 }

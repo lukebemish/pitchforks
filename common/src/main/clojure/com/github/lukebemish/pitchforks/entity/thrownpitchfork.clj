@@ -9,9 +9,11 @@
            (net.minecraft.nbt CompoundTag)
            (net.minecraft.world.entity.projectile AbstractArrow$Pickup AbstractArrow)
            (net.minecraft.world.phys EntityHitResult Vec3)
-           (net.minecraft.world.damagesource DamageSource IndirectEntityDamageSource))
+           (net.minecraft.world.damagesource DamageSource IndirectEntityDamageSource)
+           (com.github.lukebemish.pitchforks.entity ThrownPitchfork)
+           (net.minecraft.network.syncher EntityDataSerializers SynchedEntityData))
   (:require [com.github.lukebemish.pitchforks.item :as item]
-            [com.github.lukebemish.pitchforks.shared :as shared])
+            [com.github.lukebemish.pitchforks.entity.setup :as setup])
   (:gen-class
     :name com.github.lukebemish.pitchforks.entity.ThrownPitchfork
     :extends net.minecraft.world.entity.projectile.AbstractArrow
@@ -26,8 +28,12 @@
                       tickDespawn ptickDespawn
                       tick ptick}
     :exposes {inGroundTime {:get getInGroundTime :set setInGroundTime}}
+    :methods [[setup [Object] com.github.lukebemish.pitchforks.entity.ThrownPitchfork]]
     :prefix "-"
     :main false))
+
+(def id-loyalty (memoize (fn [] (SynchedEntityData/defineId ThrownPitchfork EntityDataSerializers/BYTE))))
+(def id-foil (memoize (fn [] (SynchedEntityData/defineId ThrownPitchfork EntityDataSerializers/BOOLEAN))))
 
 (defn setfield
   [this key value]
@@ -39,28 +45,24 @@
 
 (defn default-state [] {:item-stack nil :dealt-damage false :client-return-ticks 0})
 
-(defn -init
-  ([type ^Level level]
-   [[type level]
-    (atom (default-state))])
-  ([type ^LivingEntity entity ^Level level ^ItemStack item-stack]
-   [[type entity level]
-    (atom (default-state))]))
+(defn -init [& args] [args (atom (default-state))])
 
-(defn -post-init
-  ([this type ^Level level]
-   (setfield this :item-stack (ItemStack. ^ItemLike (item/pitchfork-item))))
-  ([this type ^LivingEntity entity ^Level level ^ItemStack item-stack]
-   (do
-     (.set (.getEntityData this) (shared/id-loyalty) (byte (EnchantmentHelper/getLoyalty item-stack)))
-     (.set (.getEntityData this) (shared/id-foil) (.hasFoil item-stack))
-     (setfield this :item-stack (.copy item-stack)))))
+(defn -setup [this item-stack]
+  (if (instance? ItemStack item-stack)
+    (do
+      (.set (.getEntityData this) (id-loyalty) (byte (EnchantmentHelper/getLoyalty item-stack)))
+      (.set (.getEntityData this) (id-foil) (.hasFoil item-stack))
+      (setfield this :item-stack (.copy item-stack))
+      this)))
+
+(defn -post-init [this & args]
+  (setfield this :item-stack (new ItemStack ^ItemLike (item/pitchfork-item))))
 
 (defn -defineSynchedData [this]
   (do
     (.pdefineSynchedData this)
-    (.define (.getEntityData this) (shared/id-loyalty) (byte 0))
-    (.define (.getEntityData this) (shared/id-foil) false)))
+    (.define (.getEntityData this) (id-loyalty) (byte 0))
+    (.define (.getEntityData this) (id-foil) false)))
 
 (defn -getPickupItem [this]
   (.copy (getfield this :item-stack)))
@@ -71,7 +73,7 @@
          (or (not (.isSpectator entity)) (instance? ServerPlayer entity)))))
 
 (defn isFoil [this]
-  (boolean (.get (.getEntityData this) shared/id-foil)))
+  (boolean (.get (.getEntityData this) (id-foil))))
 
 (defn -findHitEntity [this vec31 vec32]
   (if (getfield this :dealt-damage) nil (.pfindHitEntity this vec31 vec32)))
@@ -97,7 +99,7 @@
     (if (.contains tag "Pitchfork" 10)
       (setfield this :item-stack (ItemStack/of (.getCompound tag "Pitchfork"))))
     (setfield this :dealt-damage (.getBoolean tag "DealtDamage"))
-    (.set (.getEntityData this) (shared/id-loyalty) (byte (EnchantmentHelper/getLoyalty (getfield this :item-stack))))))
+    (.set (.getEntityData this) (id-loyalty) (byte (EnchantmentHelper/getLoyalty (getfield this :item-stack))))))
 
 (defn -addAdditionalSaveData [this ^CompoundTag tag]
   (do
@@ -106,12 +108,12 @@
     (.putBoolean tag "DealtDamage" (getfield this :dealt-damage))))
 
 (defn -tickDespawn [this]
-  (let [loyal (int (byte (.get (.getEntityData this) (shared/id-loyalty))))]
+  (let [loyal (int (byte (.get (.getEntityData this) (id-loyalty))))]
     (if (or (not (= (.pickup this) AbstractArrow$Pickup/ALLOWED))
             (<= loyal 0))
       (.ptickDespawn this))))
 
-(defn -shouldRender [this] true)
+(defn -shouldRender [this d e f] true)
 
 (defn -onHitEntity [this ^EntityHitResult entity-hit]
   (let [^Entity entity (.getEntity entity-hit)
@@ -154,7 +156,7 @@
     (if (> (.getInGroundTime this) 4)
       (setfield this :dealt-damage true))
     (let [owner (.getOwner this)
-          loyalty (byte (.get (.getEntityData this) (shared/id-loyalty)))]
+          loyalty (byte (.get (.getEntityData this) (id-loyalty)))]
       (if (and (> loyalty 0) (or (getfield this :dealt-damage) (.isNoPhysics this)) (not (nil? owner)))
         (if (isAcceptibleReturnOwner this)
           (let [vec3 (.subtract (.getEyePosition owner) (.position this))
@@ -170,3 +172,6 @@
                 (.spawnAtLocation this (.getPickupItem this) (float 0.1)))
               (.discard this)))))
     (.ptick this)))
+
+(defn getitem [thrown]
+  (getfield thrown :item-stack))

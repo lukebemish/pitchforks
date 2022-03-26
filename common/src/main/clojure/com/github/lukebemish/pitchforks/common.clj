@@ -7,8 +7,6 @@
             [com.github.lukebemish.pitchforks.shared :as shared]
             [com.github.lukebemish.pitchforks.entity :as entity]))
 
-(def ^Logger logger (LogManager/getLogger shared/modid))
-
 (defn init []
   (mod-api/mod-load
     {:main

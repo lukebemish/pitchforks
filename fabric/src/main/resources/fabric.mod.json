@@ -21,6 +21,9 @@
       }
     ]
   },
+  "mixins": [
+    "mixin.pitchforks.json"
+  ],
   "depends": {
     "fabric": "*",
     "minecraft": ">=1.18",

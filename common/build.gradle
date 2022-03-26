@@ -6,7 +6,7 @@ dependencies {
     //modApi "dev.architectury:architectury:${rootProject.architectury_version}"
 
     api "org.clojure:clojure:${rootProject.clojure_version}"
-    modApi("com.github.lukebemish.clojurewrapper:clojurewrapper:${rootProject.wrapper_version}") {
+    modApi("com.github.lukebemish:clojurewrapper:${rootProject.wrapper_version}") {
         transitive=false
     }
 }

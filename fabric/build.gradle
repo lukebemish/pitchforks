@@ -9,6 +9,7 @@ architectury {
 
 loom {
     accessWidenerPath = project(":common").loom.accessWidenerPath
+    log4jConfigs.from(file("../logger.xml"))
 }
 
 configurations {
@@ -28,7 +29,7 @@ dependencies {
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive false }
 
-    modApi("com.github.lukebemish.clojurewrapper:clojurewrapper-fabric:${rootProject.wrapper_version}") {transitive=false}
+    modApi("com.github.lukebemish:clojurewrapper-fabric:${rootProject.wrapper_version}") {transitive=false}
     modApi "org.clojure:clojure:${rootProject.clojure_version}"
 }
 
